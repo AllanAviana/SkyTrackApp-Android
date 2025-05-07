@@ -1,4 +1,4 @@
-package com.example.skytrackapp_android.data.model.fiveDayForecast
+package com.example.skytrackapp_android.data.model.remote.fiveDayForecast
 
 data class Main(
     val temp: Double,
