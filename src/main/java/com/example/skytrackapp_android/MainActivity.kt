@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.skytrackapp_android.screen.HomeScreen
+import com.example.skytrackapp_android.screen.SearchScreen
 import com.example.skytrackapp_android.ui.theme.SkyTrackAppAndroidTheme
 import dagger.hilt.android.AndroidEntryPoint
 
@@ -22,7 +23,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             SkyTrackAppAndroidTheme {
-                HomeScreen()
+                SearchScreen()
             }
         }
     }
