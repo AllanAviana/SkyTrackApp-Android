@@ -33,6 +33,7 @@ class WeatherViewModel @Inject constructor(
 
     init {
         fetchWeather("Sao Paulo")
+        loadSavedWeathers()
     }
 
     fun fetchWeather(city: String, apiKey: String = "91f5777c1db5ca6fa1a2a4002433a39f") {
@@ -51,15 +52,21 @@ class WeatherViewModel @Inject constructor(
                     val cityName = response.name
                     val temp = response.main.temp.toInt().toString()
 
-                    val newEntry = mapOf(
-                        "city" to cityName,
-                        "temperature" to temp
-                    )
+                    val newEntry = mapOf("city" to cityName, "temperature" to temp)
 
-                    _searchUiState.value = _searchUiState.value.copy(
-                        success = true,
-                        weathers = _searchUiState.value.weathers + newEntry
-                    )
+                    _searchUiState.value = _searchUiState.value.copy(success = true)
+
+                    val alreadyExists = _searchUiState.value.weathers.any {
+                        it["city"]?.equals(cityName, ignoreCase = true) == true
+                    }
+
+                    if (!alreadyExists) {
+                        _searchUiState.value = _searchUiState.value.copy(
+                            weathers = _searchUiState.value.weathers + newEntry
+                        )
+                        saveWeather(cityName, temp)
+                    }
+
                 } else {
                     _searchUiState.value = _searchUiState.value.copy(error = true)
                 }
@@ -71,7 +78,6 @@ class WeatherViewModel @Inject constructor(
             }
         }
     }
-
 
     private fun getWeatherImage(main: String, isNight: Boolean): Int {
         return when (main.lowercase()) {
@@ -125,5 +131,23 @@ class WeatherViewModel @Inject constructor(
             success = false,
             error = false
         )
+    }
+
+    fun saveWeather(city: String, temp: String) {
+        viewModelScope.launch {
+            val existing = repository.getSavedWeathers()
+            if (existing.none { it.city.equals(city, ignoreCase = true) }) {
+                repository.saveWeather(city, temp)
+            }
+        }
+    }
+
+
+    fun loadSavedWeathers() {
+        viewModelScope.launch {
+            val saved = repository.getSavedWeathers()
+            val mapped = saved.map { mapOf("city" to it.city, "temperature" to it.temperature) }
+            _searchUiState.value = _searchUiState.value.copy(weathers = mapped)
+        }
     }
 }
