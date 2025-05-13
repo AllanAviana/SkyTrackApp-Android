@@ -1,4 +1,4 @@
-package com.example.skytrackapp_android.screen
+package com.example.skytrackapp_android.presentation.screen
 
 import android.os.Build
 import androidx.annotation.RequiresApi
@@ -32,7 +32,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.skytrackapp_android.viewmodel.WeatherViewModel
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.Orientation
@@ -43,30 +42,50 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.runtime.State
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.zIndex
+import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.example.skytrackapp_android.R
+import com.example.skytrackapp_android.data.model.HomeUiState
 import com.example.skytrackapp_android.data.model.remote.fiveDayForecast.WeatherData
-import java.time.Duration
+import com.example.skytrackapp_android.presentation.navigation.Routes
 import java.time.LocalDateTime
-import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
-import kotlin.math.ceil
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun HomeScreen() {
-    val viewModel: WeatherViewModel = hiltViewModel()
+fun HomeScreen(viewModel: WeatherViewModel, navController: NavHostController) {
     val homeUiState = viewModel.homeUiState.collectAsState()
 
+    if (homeUiState.value.isLoading) {
+        LoadingScreen()
+    } else if (homeUiState.value.isSuccessful) {
+        SuccessScreen(homeUiState, navController, viewModel)
+    }
+}
+
+@Composable
+fun LoadingScreen() {
+    Column {
+
+    }
+}
+
+
+@RequiresApi(Build.VERSION_CODES.O)
+@Composable
+fun SuccessScreen(
+    homeUiState: State<HomeUiState>,
+    navController: NavHostController,
+    viewModel: WeatherViewModel
+) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -130,7 +149,10 @@ fun HomeScreen() {
         )
 
         Button(
-            onClick = {},
+            onClick = {
+                viewModel.resetSearchUiState()
+                navController.navigate(Routes.SearchScreen.route)
+                      },
             colors = ButtonDefaults.buttonColors(Color.White),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -163,16 +185,13 @@ fun HomeScreen() {
             modifier = Modifier
                 .fillMaxHeight(),
             verticalArrangement = Arrangement.Bottom
-            ) {
+        ) {
             ExpandableBottomCard(
                 temps = homeUiState.value.temps
             )
         }
-
-
     }
 }
-
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable

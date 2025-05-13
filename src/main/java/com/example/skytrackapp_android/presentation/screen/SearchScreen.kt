@@ -1,4 +1,4 @@
-package com.example.skytrackapp_android.screen
+package com.example.skytrackapp_android.presentation.screen
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,41 +16,48 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import com.example.skytrackapp_android.viewmodel.WeatherViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
-fun SearchScreen() {
-    var query by remember { mutableStateOf("") }
+fun SearchScreen(viewModel: WeatherViewModel, navController: NavHostController) {
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+    val searchUiState = viewModel.searchUiState.collectAsState()
     val focusManager       = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
 
@@ -74,38 +80,41 @@ fun SearchScreen() {
             }
             .padding(top = 24.dp)
     ) {
-        WeatherTopBar()
+        LaunchedEffect(searchUiState.value.error) {
+            if (searchUiState.value.error) {
+                snackbarHostState.showSnackbar("City not found")
+                viewModel.resetSearchUiState()
+            }
+        }
+        SnackbarHost(hostState = snackbarHostState)
+
+        WeatherTopBar(navController)
 
         SearchBar(
-            value         = query,
-            onValueChange = { query = it },
-            onSearch      = {
-                focusManager.clearFocus()
-                keyboardController?.hide()
+            value         = searchUiState.value.city,
+            onValueChange = { viewModel.updateCity(it)},
+            onSearch = {
+                viewModel.fetchWeather(city = searchUiState.value.city)
+                coroutineScope.launch {
+                    delay(1000)
+                    if (searchUiState.value.success) {
+                        navController.popBackStack()
+                    }
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }
             }
+
         )
 
         LazyColumn {
-            item {
+            items(searchUiState.value.weathers) { weather ->
+                val city = weather["city"] ?: "Cidade desconhecida"
+                val temp = weather["temperature"]?.toIntOrNull() ?: 0
+
                 WeatherCard(
-                    tempC = 25,
-                    location = "São Paulo, Brazil"
-                )
-                WeatherCard(
-                    tempC = 25,
-                    location = "São Paulo, Brazil"
-                )
-                WeatherCard(
-                    tempC = 25,
-                    location = "São Paulo, Brazil"
-                )
-                WeatherCard(
-                    tempC = 25,
-                    location = "São Paulo, Brazil"
-                )
-                WeatherCard(
-                    tempC = 25,
-                    location = "São Paulo, Brazil"
+                    tempC = temp,
+                    location = city
                 )
             }
         }
@@ -114,8 +123,7 @@ fun SearchScreen() {
 
 
 @Composable
-fun WeatherTopBar(
-) {
+fun WeatherTopBar(navController: NavHostController) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -128,7 +136,9 @@ fun WeatherTopBar(
             tint = Color.White,
             modifier = Modifier
                 .size(28.dp)
-                .clickable { }
+                .clickable {
+                    navController.popBackStack()
+                }
         )
         Spacer(Modifier.width(8.dp))
         Text(
@@ -239,11 +249,4 @@ fun WeatherCard(
             }
         }
     }
-}
-
-
-@Preview
-@Composable
-fun SearchScreenPreview(){
-    SearchScreen()
 }

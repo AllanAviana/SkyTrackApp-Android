@@ -6,6 +6,7 @@ import com.example.skytrackapp_android.data.model.remote.fiveDayForecast.Weather
 
 data class HomeUiState(
     val isLoading: Boolean = false,
+    val isSuccessful: Boolean = false,
     val weatherResponse: WeatherResponse? = null,
     val image: Int = R.drawable.clearnight,
     val temperature: Int = 0,

@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.skytrackapp_android.R
 import com.example.skytrackapp_android.data.model.HomeUiState
+import com.example.skytrackapp_android.data.model.SearchUiState
 import com.example.skytrackapp_android.data.model.remote.fiveDayForecast.CurrentWeatherResponse
 import com.example.skytrackapp_android.data.model.remote.fiveDayForecast.WeatherResponse
 import com.example.skytrackapp_android.data.repository.WeatherRepository
@@ -27,6 +28,9 @@ class WeatherViewModel @Inject constructor(
     private val _homeUiState = MutableStateFlow(HomeUiState())
     val homeUiState: StateFlow<HomeUiState> = _homeUiState.asStateFlow()
 
+    private val _searchUiState = MutableStateFlow(SearchUiState())
+    val searchUiState: StateFlow<SearchUiState> = _searchUiState.asStateFlow()
+
     init {
         fetchWeather("Sao Paulo")
     }
@@ -36,25 +40,38 @@ class WeatherViewModel @Inject constructor(
             try {
                 val result = repository.getFiveDayForecast(city, apiKey)
                 val response = repository.getCurrentWeather(city, apiKey)
-                Log.d("WeatherViewModel", "Result fetched: $result")
-                Log.d("WeatherViewModel", "List size: ${result.list.size}")
 
                 if (result.list.isNotEmpty()) {
+                    _homeUiState.value = _homeUiState.value.copy(isLoading = true)
                     _weatherResponse.value = result
                     _currentWeatherResponse.value = response
                     updateHomeUiState()
+                    _homeUiState.value = _homeUiState.value.copy(isLoading = false, isSuccessful = true)
+
+                    val cityName = response.name
+                    val temp = response.main.temp.toInt().toString()
+
+                    val newEntry = mapOf(
+                        "city" to cityName,
+                        "temperature" to temp
+                    )
+
+                    _searchUiState.value = _searchUiState.value.copy(
+                        success = true,
+                        weathers = _searchUiState.value.weathers + newEntry
+                    )
                 } else {
-                    Log.d("WeatherViewModel", "No data in result list")
-                    _weatherResponse.value = null
+                    _searchUiState.value = _searchUiState.value.copy(error = true)
                 }
 
             } catch (e: Exception) {
                 e.printStackTrace()
                 Log.e("WeatherViewModel", "Exception occurred: ${e.message}", e)
-                _weatherResponse.value = null
+                _searchUiState.value = _searchUiState.value.copy(error = true)
             }
         }
     }
+
 
     private fun getWeatherImage(main: String, isNight: Boolean): Int {
         return when (main.lowercase()) {
@@ -96,5 +113,17 @@ class WeatherViewModel @Inject constructor(
         }
 
         Log.d("WeatherViewModel", "temp: ${_homeUiState.value.temperature}")
+    }
+
+    fun updateCity(city: String) {
+        _searchUiState.value = _searchUiState.value.copy(city = city)
+    }
+
+    fun resetSearchUiState() {
+        _searchUiState.value = _searchUiState.value.copy(
+            city = "",
+            success = false,
+            error = false
+        )
     }
 }
