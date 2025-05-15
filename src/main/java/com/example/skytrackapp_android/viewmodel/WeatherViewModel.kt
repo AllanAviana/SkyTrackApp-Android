@@ -32,7 +32,6 @@ class WeatherViewModel @Inject constructor(
     val searchUiState: StateFlow<SearchUiState> = _searchUiState.asStateFlow()
 
     init {
-        fetchWeather("Sao Paulo")
         loadSavedWeathers()
     }
 
@@ -146,8 +145,10 @@ class WeatherViewModel @Inject constructor(
     fun loadSavedWeathers() {
         viewModelScope.launch {
             val saved = repository.getSavedWeathers()
-            val mapped = saved.map { mapOf("city" to it.city, "temperature" to it.temperature) }
-            _searchUiState.value = _searchUiState.value.copy(weathers = mapped)
+            saved.forEach { cityEntry ->
+                fetchWeather(cityEntry.city)
+            }
         }
     }
+
 }

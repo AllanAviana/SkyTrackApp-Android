@@ -32,11 +32,8 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -114,7 +111,14 @@ fun SearchScreen(viewModel: WeatherViewModel, navController: NavHostController) 
 
                 WeatherCard(
                     tempC = temp,
-                    location = city
+                    location = city,
+                    onClick = {viewModel.fetchWeather(city)},
+                    navigation = {
+                        coroutineScope.launch {
+                            delay(300)
+                            navController.popBackStack()
+                        }
+                    }
                 )
             }
         }
@@ -197,7 +201,9 @@ fun SearchBar(
 fun WeatherCard(
     tempC: Int,
     location: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    navigation: () -> Unit
 ) {
     val shape = RoundedCornerShape(50.dp)
 
@@ -224,6 +230,13 @@ fun WeatherCard(
                 .background(glassBrush)
                 .border(1.dp, Color.White.copy(alpha = 0.25f), shape)
                 .padding(horizontal = 20.dp, vertical = 12.dp)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    onClick()
+                    navigation()
+                }
         ) {
             Column(
                 modifier = Modifier.fillMaxSize()
