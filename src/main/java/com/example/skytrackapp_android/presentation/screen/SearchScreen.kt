@@ -1,5 +1,8 @@
 package com.example.skytrackapp_android.presentation.screen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -17,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -43,6 +47,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
@@ -105,14 +110,15 @@ fun SearchScreen(viewModel: WeatherViewModel, navController: NavHostController) 
         )
 
         LazyColumn {
-            items(searchUiState.value.weathers) { weather ->
+            itemsIndexed(searchUiState.value.weathers) { index, weather ->
                 val city = weather["city"] ?: "Cidade desconhecida"
                 val temp = weather["temperature"]?.toIntOrNull() ?: 0
 
                 WeatherCard(
                     tempC = temp,
                     location = city,
-                    onClick = {viewModel.fetchWeather(city)},
+                    index = index,
+                    onClick = { viewModel.fetchWeather(city) },
                     navigation = {
                         coroutineScope.launch {
                             delay(300)
@@ -121,6 +127,7 @@ fun SearchScreen(viewModel: WeatherViewModel, navController: NavHostController) 
                     }
                 )
             }
+
         }
     }
 }
@@ -202,10 +209,17 @@ fun WeatherCard(
     tempC: Int,
     location: String,
     modifier: Modifier = Modifier,
+    index: Int,
     onClick: () -> Unit,
     navigation: () -> Unit
 ) {
     val shape = RoundedCornerShape(50.dp)
+    val visible = remember { androidx.compose.runtime.mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        delay(index * 200L)
+        visible.value = true
+    }
 
     val glassBrush = Brush.radialGradient(
         colors = listOf(
@@ -216,48 +230,51 @@ fun WeatherCard(
         radius = 900f
     )
 
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.Center
-    ){
-        Box(
-            modifier = modifier
-                .fillMaxWidth(0.9f)
-                .height(214.dp)
-                .clip(shape)
-                .background(glassBrush)
-                .border(1.dp, Color.White.copy(alpha = 0.25f), shape)
-                .padding(horizontal = 20.dp, vertical = 12.dp)
-                .clickable(
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    onClick()
-                    navigation()
-                }
+    AnimatedVisibility(
+        visible = visible.value,
+        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 })
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp),
+            horizontalArrangement = Arrangement.Center
         ) {
-            Column(
-                modifier = Modifier.fillMaxSize()
+            Box(
+                modifier = modifier
+                    .fillMaxWidth(0.9f)
+                    .height(214.dp)
+                    .clip(shape)
+                    .background(glassBrush)
+                    .border(1.dp, Color.White.copy(alpha = 0.25f), shape)
+                    .padding(horizontal = 20.dp, vertical = 12.dp)
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { MutableInteractionSource() }
+                    ) {
+                        onClick()
+                        navigation()
+                    }
             ) {
-                Text(
-                    text = "$tempC°  ",
-                    fontSize = 56.sp,
-                    color = Color.White
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
+                Column(modifier = Modifier.fillMaxSize()) {
                     Text(
-                        text = location,
-                        fontSize = 32.sp,
-                        color = Color.White,
-                        modifier = Modifier.padding(top = 16.dp)
+                        text = "$tempC°",
+                        fontSize = 56.sp,
+                        color = Color.White
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = location,
+                            fontSize = 32.sp,
+                            color = Color.White,
+                            modifier = Modifier.padding(top = 16.dp),
+                            textAlign = TextAlign.Center
                         )
+                    }
                 }
             }
         }
