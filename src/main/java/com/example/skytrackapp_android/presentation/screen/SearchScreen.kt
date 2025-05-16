@@ -1,6 +1,11 @@
 package com.example.skytrackapp_android.presentation.screen
 
+import android.os.Build
+import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
@@ -36,14 +41,18 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
@@ -55,6 +64,7 @@ import com.example.skytrackapp_android.viewmodel.WeatherViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun SearchScreen(viewModel: WeatherViewModel, navController: NavHostController) {
     val snackbarHostState = remember { SnackbarHostState() }
@@ -111,6 +121,7 @@ fun SearchScreen(viewModel: WeatherViewModel, navController: NavHostController) 
 
         LazyColumn {
             itemsIndexed(searchUiState.value.weathers) { index, weather ->
+                Log.d("SearchScreen", "Weather: $weather")
                 val city = weather["city"] ?: "Cidade desconhecida"
                 val temp = weather["temperature"]?.toIntOrNull() ?: 0
 
@@ -214,12 +225,18 @@ fun WeatherCard(
     navigation: () -> Unit
 ) {
     val shape = RoundedCornerShape(50.dp)
-    val visible = remember { androidx.compose.runtime.mutableStateOf(false) }
+    var visible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        delay(index * 200L)
-        visible.value = true
+        if (index <= 10) delay(index * 50L)
+        visible = true
     }
+
+    val alpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 600),
+        label = "fade"
+    )
 
     val glassBrush = Brush.radialGradient(
         colors = listOf(
@@ -230,51 +247,47 @@ fun WeatherCard(
         radius = 900f
     )
 
-    AnimatedVisibility(
-        visible = visible.value,
-        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 })
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+            .graphicsLayer { this.alpha = alpha }, // animação de opacidade real
+        horizontalArrangement = Arrangement.Center
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 12.dp),
-            horizontalArrangement = Arrangement.Center
+        Box(
+            modifier = modifier
+                .fillMaxWidth(0.9f)
+                .height(214.dp)
+                .clip(shape)
+                .background(glassBrush)
+                .border(1.dp, Color.White.copy(alpha = 0.25f), shape)
+                .padding(horizontal = 20.dp, vertical = 12.dp)
+                .clickable(
+                    indication = null,
+                    interactionSource = remember { MutableInteractionSource() }
+                ) {
+                    onClick()
+                    navigation()
+                }
         ) {
-            Box(
-                modifier = modifier
-                    .fillMaxWidth(0.9f)
-                    .height(214.dp)
-                    .clip(shape)
-                    .background(glassBrush)
-                    .border(1.dp, Color.White.copy(alpha = 0.25f), shape)
-                    .padding(horizontal = 20.dp, vertical = 12.dp)
-                    .clickable(
-                        indication = null,
-                        interactionSource = remember { MutableInteractionSource() }
-                    ) {
-                        onClick()
-                        navigation()
-                    }
-            ) {
-                Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                Text(
+                    text = "$tempC°",
+                    fontSize = 56.sp,
+                    color = Color.White
+                )
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        text = "$tempC°",
-                        fontSize = 56.sp,
-                        color = Color.White
+                        text = location,
+                        fontSize = 32.sp,
+                        color = Color.White,
+                        modifier = Modifier.padding(top = 16.dp),
+                        textAlign = TextAlign.Center
                     )
-                    Row(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalArrangement = Arrangement.Center,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = location,
-                            fontSize = 32.sp,
-                            color = Color.White,
-                            modifier = Modifier.padding(top = 16.dp),
-                            textAlign = TextAlign.Center
-                        )
-                    }
                 }
             }
         }

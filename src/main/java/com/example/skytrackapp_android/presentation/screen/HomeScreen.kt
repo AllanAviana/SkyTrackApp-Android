@@ -3,6 +3,8 @@ package com.example.skytrackapp_android.presentation.screen
 import android.os.Build
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -36,25 +38,34 @@ import com.example.skytrackapp_android.viewmodel.WeatherViewModel
 import androidx.compose.foundation.gestures.draggable
 import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.zIndex
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.example.skytrackapp_android.R
+import com.example.skytrackapp_android.data.model.DayWeather
 import com.example.skytrackapp_android.data.model.HomeUiState
 import com.example.skytrackapp_android.data.model.remote.fiveDayForecast.WeatherData
 import com.example.skytrackapp_android.presentation.navigation.Routes
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import java.util.Locale
@@ -187,7 +198,9 @@ fun SuccessScreen(
             verticalArrangement = Arrangement.Bottom
         ) {
             ExpandableBottomCard(
-                temps = homeUiState.value.temps
+                temps = homeUiState.value.temps,
+                dayWeather = homeUiState.value.dayWeather,
+                timezoneOffset = homeUiState.value.weatherResponse?.city?.timezone ?: 0
             )
         }
     }
@@ -195,10 +208,13 @@ fun SuccessScreen(
 
 @RequiresApi(Build.VERSION_CODES.O)
 @Composable
-fun ExpandableBottomCard(temps: List<WeatherData>) {
-
+fun ExpandableBottomCard(
+    temps: List<WeatherData>,
+    dayWeather: List<DayWeather>,
+    timezoneOffset: Int
+) {
     val collapsedHeight = 340.dp
-    val inputFmt  = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+    val inputFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
     val outputFmt = DateTimeFormatter.ofPattern("h a", Locale.US)
 
     var currentHeight by remember { mutableStateOf(collapsedHeight) }
@@ -206,15 +222,17 @@ fun ExpandableBottomCard(temps: List<WeatherData>) {
         targetValue = currentHeight.coerceIn(
             collapsedHeight,
             LocalConfiguration.current.screenHeightDp.dp * 0.7f
-        )
+        ),
+        label = "cardHeight"
     )
 
     val timeCards = remember(temps) {
         val cards = mutableListOf<Triple<String, String, String>>()
 
         if (temps.isNotEmpty()) {
-            var cursor = LocalDateTime.now().truncatedTo(ChronoUnit.HOURS)
-            val first  = LocalDateTime.parse(temps.first().dt_txt, inputFmt)
+            val zoneOffset = ZoneOffset.ofTotalSeconds(timezoneOffset)
+            var cursor = OffsetDateTime.now(zoneOffset).toLocalDateTime().truncatedTo(ChronoUnit.HOURS)
+            val first = LocalDateTime.parse(temps.first().dt_txt, inputFmt)
 
             while (cursor.isBefore(first)) {
                 cards += Triple(
@@ -247,7 +265,7 @@ fun ExpandableBottomCard(temps: List<WeatherData>) {
                     0f to Color(0xFF2E335A).copy(alpha = .26f),
                     1f to Color(0xFF1C1B33).copy(alpha = .26f),
                     start = Offset.Zero,
-                    end   = Offset(1000f, 1000f)
+                    end = Offset(1000f, 1000f)
                 ),
                 RoundedCornerShape(topStart = 44.dp, topEnd = 44.dp)
             )
@@ -257,7 +275,6 @@ fun ExpandableBottomCard(temps: List<WeatherData>) {
                 },
                 orientation = Orientation.Vertical
             )
-
     ) {
         Box(
             Modifier
@@ -267,13 +284,83 @@ fun ExpandableBottomCard(temps: List<WeatherData>) {
                 .background(Color.White.copy(.30f), RoundedCornerShape(2.dp))
         )
 
-        LazyRow(
-            Modifier.padding(horizontal = 6.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 34.dp)
         ) {
-            items(timeCards.size) { i ->
-                val (time, temp, icon) = timeCards[i]
-                TimeCard(time, temp, icon, Modifier.padding(top = 34.dp))
+            LazyRow(
+                Modifier.padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.SpaceAround
+            ) {
+                items(timeCards.size) { i ->
+                    val (time, temp, icon) = timeCards[i]
+                    TimeCard(time, temp, icon, modifier = Modifier)
+                }
+            }
+
+            if (animatedHeight > collapsedHeight + 50.dp) {
+                Spacer(modifier = Modifier.height(24.dp))
+
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(280.dp)
+                        .padding(horizontal = 24.dp)
+                        .background(
+                            color = Color(0xFF3C3F70).copy(alpha = 0.4f),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.SpaceBetween
+                ) {
+                    items(dayWeather) { day ->
+                        var visible by remember { mutableStateOf(false) }
+
+                        LaunchedEffect(Unit) {
+                            visible = true
+                        }
+
+                        val alpha by animateFloatAsState(
+                            targetValue = if (visible) 1f else 0f,
+                            animationSpec = tween(durationMillis = 600),
+                            label = "fadeIn"
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer { this.alpha = alpha },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text(
+                                text = day.day,
+                                color = Color.White,
+                                fontSize = 16.sp
+                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "${day.temperature}°",
+                                    color = Color.White,
+                                    fontSize = 22.sp,
+                                    modifier = Modifier.padding(end = 8.dp)
+                                )
+                                Text(
+                                    text = "↑${day.maxTemperature}° ↓${day.minTemperature}°",
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 18.sp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                AsyncImage(
+                                    model = "https://openweathermap.org/img/wn/${day.weatherIconCode}@2x.png",
+                                    contentDescription = null,
+                                    modifier = Modifier.size(32.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

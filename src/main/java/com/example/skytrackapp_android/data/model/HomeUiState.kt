@@ -13,4 +13,5 @@ data class HomeUiState(
     val maxTemperature: Int = 0,
     val minTemperature: Int = 0,
     val temps: List<WeatherData> = emptyList(),
+    val dayWeather: List<DayWeather> = emptyList()
 )
